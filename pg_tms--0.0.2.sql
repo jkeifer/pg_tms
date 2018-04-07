@@ -33,6 +33,23 @@ CREATE TYPE tms_tile AS (rast raster, x int, y int, z int);
 -- pg_tms type casts
 --------------------
 
+CREATE FUNCTION tms_fliprastergeotransform(input raster)
+RETURNS raster
+LANGUAGE plpgsql IMMUTABLE STRICT
+AS $$
+BEGIN
+ RETURN (SELECT ST_SetGeoReference(
+    input,
+    ST_UpperLeftX(input),
+    ST_UpperLeftY(input) + ST_Scaley(input) * ST_Height(input),
+    ST_Scalex(input),
+    -ST_Scaley(input),
+    ST_Skewx(input),
+    ST_Skewy(input)
+  ));
+END;
+$$;
+
 CREATE FUNCTION tms_tilecoordz2raster(coords tms_tilecoordz)
 RETURNS raster
 LANGUAGE plpgsql IMMUTABLE STRICT
@@ -45,7 +62,7 @@ BEGIN
   SELECT
     tms_resolution(coords.z)
   INTO res;
-  RETURN (SELECT ST_MakeEmptyRaster(
+  RETURN (SELECT tms_fliprastergeotransform(ST_MakeEmptyRaster(
     256,
     256,
     ext.minx,
@@ -55,7 +72,7 @@ BEGIN
     0,
     0,
     3857
-  ));
+  )));
 END;
 $$;
 
@@ -71,12 +88,13 @@ DECLARE
   ext tms_meters_ext;
 BEGIN
   ext := coords::tms_meters_ext;
-  RETURN (SELECT ST_MakeEnvelop(
+  RETURN (SELECT ST_MakeEnvelope(
+    ext.maxx,
+    ext.maxy,
     ext.minx,
     ext.miny,
-    ext.maxx,
-    ext.maxy
-  ), 3857);
+    3857
+  ));
 END;
 $$;
 
@@ -126,7 +144,8 @@ AS $$
 BEGIN
   -- gdal2tile uses max zoom level of 32
   -- seems a little arbitray, but we'll go with it
-  -- beyond that is too many tiles
+  -- beyond that is just crazy tiles and we'll leave
+  -- it to someone with those needs to change the code
   FOR i in 0..32 LOOP
     IF pixelSize > tms_resolution(i) THEN
       IF i != 0 THEN
@@ -164,20 +183,20 @@ BEGIN
     t.x, t.y
   FROM
     tms_meters2tile(ST_UpperLeftX(input), ST_UpperLeftY(input), zoom) AS t
-  INTO tminx, tminy;
+  INTO tminx, tmaxy;
   SELECT
     t.x, t.y
   FROM
     tms_meters2tile(
       ST_UpperLeftX(input) + ST_Scalex(input) * ST_Width(input),
-      ST_UpperLeftY(input) - ST_Scaley(input) * ST_Height(input),
+      ST_UpperLeftY(input) - ABS(ST_Scaley(input) * ST_Height(input)),
       zoom
     ) AS t
-  INTO tmaxx, tmaxy;
+  INTO tmaxx, tminy;
 
   -- we have to crop the top and bottom of the map
   -- if it falls outside the valid area
-  tmaxx := (SELECT LEAST(2^zoom-1, tmaxx));
+  --tmaxx := (SELECT LEAST(2^zoom-1, tmaxx));
   tmaxy := (SELECT LEAST(2^zoom-1, tmaxy));
 
   RETURN (tminx, tminy, tmaxx, tmaxy)::tms_tilecoord_ext;
@@ -193,11 +212,13 @@ LANGUAGE plpgsql IMMUTABLE STRICT
 AS $$
 DECLARE
   output raster;
+  process raster;
   bands int;
 BEGIN
   SELECT ST_MakeEmptyRaster(tile) INTO output;
   SELECT ST_NumBands(input) into bands;
   FOR band in 1..bands LOOP
+    --RAISE WARNING 'Input - band % - % - %', band, st_summary(input), st_summarystats(input);
     tile := ST_AddBand(
       tile,
       band,
@@ -205,27 +226,54 @@ BEGIN
       ST_BandNoDataValue(input, band),
       ST_BandNoDataValue(input, band)
     );
-    output := ST_AddBand(output, ST_MapAlgebra(input, band, tile, 1, '[rast1]', NULL, 'SECOND'));
+    --RAISE WARNING 'Input - band % - % - %', band, st_summary(input), st_summarystats(input);
+    --RAISE WARNING 'before';
+    process := ST_MapAlgebra(input, band, tile, band, '[rast1]', NULL, 'SECOND', NULL, '[rast1]', NULL);
+    --RAISE WARNING 'Process - band % - % - %', band, st_summary(process), st_summarystats(process);
+    output := ST_AddBand(output, process);
+    --RAISE WARNING 'Output - band % - % - %', band, st_summary(output), st_summarystats(output, band);
+    --RAISE WARNING 'after';
   END LOOP;
   RETURN output;
 END;
 $$;
 
+
+CREATE FUNCTION tms_has_data(
+  input raster
+)
+RETURNS bool
+LANGUAGE plpgsql IMMUTABLE STRICT
+AS $$
+BEGIN
+  FOR band in 1..ST_NumBands(input) LOOP
+    IF ST_Count(input, band) > 0 THEN
+      RETURN true;
+    END IF;
+  END LOOP;
+  RETURN false;
+END
+$$;
+
+
 CREATE FUNCTION tms_tile_zoom(
   input raster,
   zoom int,
+  drop_blanks bool DEFAULT true,
   algorithm text DEFAULT 'NearestNeighbor'
 )
 RETURNS SETOF tms_tile
 LANGUAGE plpgsql IMMUTABLE STRICT
 AS $$
 DECLARE
-  resampled raster DEFAULT NULL;
+  resampled raster;
   tile raster;
   tminx int;
   tminy int;
   tmaxx int;
   tmaxy int;
+  tcount bigint;
+  tnow bigint DEFAULT 0;
 BEGIN
   -- find the extent of the input raster in tile coords
   SELECT
@@ -235,14 +283,18 @@ BEGIN
   INTO
     tminx, tminy, tmaxx, tmaxy;
 
+  tcount := (tmaxx - tminx + 1) * (tmaxy - tminy + 1);
+ 
+  RAISE INFO 'ZOOM LEVEL % TILING FROM (%, %) TO (%, %) -- % total tiles', zoom, tminx, tminy, tmaxx, tmaxy, tcount;
   -- generate the tiles for this zoom level
-  FOR tx IN tminx..tmaxx LOOP
-    FOR ty IN tminy..tmaxy LOOP
+  FOR ty IN tminy..tmaxy LOOP
+    FOR tx IN tminx..tmaxx LOOP
+      tnow := tnow + 1;
       -- We have to handle data crossing 180E, which could have
       -- invalid tile coords. So we mod by the number of x tiles.
       tx := tx % (2 ^ zoom)::int;
 
-      RAISE DEBUG 'PROCESS TILE XYZ (%,%, %)', tx, ty, zoom;
+      RAISE INFO 'PROCESS TILE XYZ (%,%, %) -- % of %', tx, ty, zoom, tnow, tcount;
 
       -- generate a blank raster for the tile
       SELECT (tx, ty, zoom)::tms_tilecoordz::raster INTO tile;
@@ -251,8 +303,15 @@ BEGIN
       IF resampled IS NULL THEN
         SELECT ST_Resample(input, tile, algorithm) INTO resampled;
       END IF;
-      
-      RETURN NEXT (tms_copy_to_tile(resampled, tile), tx, ty, zoom)::tms_tile;
+
+      tile := tms_copy_to_tile(resampled, tile);
+
+      IF NOT drop_blanks OR tms_has_data(tile) THEN
+        RETURN NEXT ((tile, tx, ty, zoom)::tms_tile);
+      ELSE
+        RAISE WARNING 'TILE DROPPED BECAUSE IT HAS NO DATA';
+        RETURN NEXT ((NULL, tx, ty, zoom)::tms_tile);
+      END IF;
     END LOOP;
   END LOOP;
   RETURN;
@@ -263,6 +322,7 @@ CREATE FUNCTION tms_build_tiles(
   input raster,
   min_zoom int DEFAULT -1,
   max_zoom int DEFAULT -1,
+  drop_blanks bool DEFAULT true,
   algorithm text DEFAULT 'NearestNeighbor'
 )
 RETURNS SETOF tms_tile
@@ -301,109 +361,9 @@ BEGIN
   
   -- generate the tiles for this zoom level
   FOR zoom IN _min_zoom.._max_zoom LOOP
-    RETURN QUERY SELECT t.rast, t.x, t.y, t.z FROM tms_tile_zoom(input, zoom, algorithm) as t;
+    RETURN QUERY SELECT t.rast, t.x, t.y, t.z FROM tms_tile_zoom(input, zoom, drop_blanks, algorithm) as t;
   END LOOP;
 RETURN;
-END;
-$$;
-
-
--------------------------
--- pg_tms query functions
--------------------------
-
-/*
-CREATE FUNCTION tms_gen_missing_tile(
-  coord tms_tilecoordz,
-  _tbl_type anyelement
-)
-RETURNS raster
-LANGUAGE plpgsql IMMUTABLE STRICT
-AS $$
-DECLARE
-  tile raster;
-  tbound tms_tilebounds_meters;
-  poly geometry;
-BEGIN
-  SELECT tms_tilebounds_meters(coord.x, coord.y, coord.x) INTO tbound;
-  SELECT coord::geometry INTO poly;
-  RETURN EXECUTE format('
-    SELECT ST_Resample(rast, $1)
-    FROM %s
-    WHERE
-      ST_Intersects(rast, $2)
-    ORDER BY zoom DESC
-    LIMIT 1
-  ', pg_typeof(_tbl_type))
-  USING coord::raster, poly;
-END;
-$$;
-
--- pass this a table already filtered for a specific
--- parent raster via a subselect for _tbl_type
-CREATE FUNCTION tms_get_tile(
-  coord tms_tilecoordz,
-  _tbl_type anyelement
-)
-RETURNS raster
-LANGUAGE plpgsql IMMUTABLE STRICT
-AS $$
-BEGIN
-  RETURN QUERY EXECUTE format('
-    SELECT rast
-    FROM %s
-    WHERE
-      x = $1,
-      y = $2,
-      z = $3
-  ', pg_typeof(_tbl_type))
-  USING coord.x, coord.y, coord.z;
-END
-$$;
-*/
-
--- pass this a table already filtered for a specific
--- parent raster via a subselect for _tbl_type
-CREATE FUNCTION tms_tile2png(
-  coord tms_tilecoordz,
-  _tbl_type anyelement,
-  resample bool DEFAULT true
-)
-RETURNS bytea
-LANGUAGE plpgsql IMMUTABLE STRICT
-AS $$
-DECLARE
-  tile raster;
-BEGIN
-  EXECUTE format('
-    SELECT rast
-    FROM %s
-    WHERE
-      x = $1,
-      y = $2,
-      z = $3
-  ', pg_typeof(_tbl_type))
-  USING coord.x, coord.y, coord.z
-  INTO tile;
-
-  IF tile IS NULL AND resample THEN
-    EXECUTE format('
-      SELECT ST_Resample(rast, $1)
-      FROM %s
-      WHERE
-        ST_Intersects(rast, $2)
-      ORDER BY zoom DESC
-      LIMIT 1
-    ', pg_typeof(_tbl_type))
-    USING coord::raster, poly
-    INTO tile;
-  END IF;
-
-  IF tile IS NULL THEN
-    RETURN NULL;
-  END IF;
-  
-  RETURN (SELECT ST_AsPNG(tile));
 END;
 $$;
 
@@ -695,3 +655,4 @@ $$;
 CREATE CAST (tms_tilecoordz AS tms_latlon_ext)
   WITH FUNCTION tms_tilebounds_latlon(tms_tilecoordz)
   AS ASSIGNMENT;
+
