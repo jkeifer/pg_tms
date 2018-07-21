@@ -1,20 +1,86 @@
+CREATE EXTENSION pg_tms CASCADE;
+
+
 CREATE TABLE "snodas" (
-  "rid" serial PRIMARY KEY,
-  "rast" raster NOT NULL,
-  "filename" text,
+  "snodas_id" serial PRIMARY KEY,
+  "swe" raster NOT NULL,
+  "depth" raster NOT NULL,
+  "melt" raster NOT NULL,
+  "sublimation" raster NOT NULL,
+  "sublimation_blowing" raster NOT NULL,
+  "precip_solid" raster NOT NULL,
+  "precip_liquid" raster NOT NULL,
+  "average_temp" raster NOT NULL,
   "date" date NOT NULL,
-  CONSTRAINT enforce_height_rast CHECK (st_height(rast) = 3351),
-  CONSTRAINT enforce_nodata_values_rast CHECK (_raster_constraint_nodata_values(rast)::numeric(16,10)[] = '{-9999}'::numeric(16,10)[]),
-  CONSTRAINT enforce_num_bands_rast CHECK (st_numbands(rast) = 1),
-  CONSTRAINT enforce_out_db_rast CHECK (_raster_constraint_out_db(rast) = '{f}'::boolean[]),
-  CONSTRAINT enforce_pixel_types_rast CHECK (_raster_constraint_pixel_types(rast) = '{16BSI}'::text[]),
-  CONSTRAINT enforce_scalex_rast CHECK (st_scalex(rast)::numeric(25,10) = 0.00833333333333328::numeric(25,10)),
-  CONSTRAINT enforce_scaley_rast CHECK (st_scaley(rast)::numeric(25,10) = (-0.00833333333333333)::numeric(25,10))
+  -- swe constraints
+  CONSTRAINT enforce_height_swe CHECK (st_height(swe) = 3351),
+  CONSTRAINT enforce_nodata_values_swe CHECK (_raster_constraint_nodata_values(swe)::numeric(16,10)[] = '{-9999}'::numeric(16,10)[]),
+  CONSTRAINT enforce_num_bands_swe CHECK (st_numbands(swe) = 1),
+  CONSTRAINT enforce_out_db_swe CHECK (_raster_constraint_out_db(swe) = '{f}'::boolean[]),
+  CONSTRAINT enforce_pixel_types_swe CHECK (_raster_constraint_pixel_types(swe) = '{16BSI}'::text[]),
+  CONSTRAINT enforce_scalex_swe CHECK (st_scalex(swe)::numeric(25,10) = 0.00833333333333328::numeric(25,10)),
+  CONSTRAINT enforce_scaley_swe CHECK (st_scaley(swe)::numeric(25,10) = (-0.00833333333333333)::numeric(25,10))
+  -- depth constraints
+  CONSTRAINT enforce_height_depth CHECK (st_height(depth) = 3351),
+  CONSTRAINT enforce_nodata_values_depth CHECK (_raster_constraint_nodata_values(depth)::numeric(16,10)[] = '{-9999}'::numeric(16,10)[]),
+  CONSTRAINT enforce_num_bands_depth CHECK (st_numbands(depth) = 1),
+  CONSTRAINT enforce_out_db_depth CHECK (_raster_constraint_out_db(depth) = '{f}'::boolean[]),
+  CONSTRAINT enforce_pixel_types_depth CHECK (_raster_constraint_pixel_types(depth) = '{16BSI}'::text[]),
+  CONSTRAINT enforce_scalex_depth CHECK (st_scalex(depth)::numeric(25,10) = 0.00833333333333328::numeric(25,10)),
+  CONSTRAINT enforce_scaley_depth CHECK (st_scaley(depth)::numeric(25,10) = (-0.00833333333333333)::numeric(25,10))
+  -- melt constraints
+  CONSTRAINT enforce_height_melt CHECK (st_height(melt) = 3351),
+  CONSTRAINT enforce_nodata_values_melt CHECK (_raster_constraint_nodata_values(melt)::numeric(16,10)[] = '{-9999}'::numeric(16,10)[]),
+  CONSTRAINT enforce_num_bands_melt CHECK (st_numbands(melt) = 1),
+  CONSTRAINT enforce_out_db_melt CHECK (_raster_constraint_out_db(melt) = '{f}'::boolean[]),
+  CONSTRAINT enforce_pixel_types_melt CHECK (_raster_constraint_pixel_types(melt) = '{16BSI}'::text[]),
+  CONSTRAINT enforce_scalex_melt CHECK (st_scalex(melt)::numeric(25,10) = 0.00833333333333328::numeric(25,10)),
+  CONSTRAINT enforce_scaley_melt CHECK (st_scaley(melt)::numeric(25,10) = (-0.00833333333333333)::numeric(25,10))
+  -- sublimation constraints
+  CONSTRAINT enforce_height_sublimation CHECK (st_height(sublimation) = 3351),
+  CONSTRAINT enforce_nodata_values_sublimation CHECK (_raster_constraint_nodata_values(sublimation)::numeric(16,10)[] = '{-9999}'::numeric(16,10)[]),
+  CONSTRAINT enforce_num_bands_sublimation CHECK (st_numbands(sublimation) = 1),
+  CONSTRAINT enforce_out_db_sublimation CHECK (_raster_constraint_out_db(sublimation) = '{f}'::boolean[]),
+  CONSTRAINT enforce_pixel_types_sublimation CHECK (_raster_constraint_pixel_types(sublimation) = '{16BSI}'::text[]),
+  CONSTRAINT enforce_scalex_sublimation CHECK (st_scalex(sublimation)::numeric(25,10) = 0.00833333333333328::numeric(25,10)),
+  CONSTRAINT enforce_scaley_sublimation CHECK (st_scaley(sublimation)::numeric(25,10) = (-0.00833333333333333)::numeric(25,10))
+  -- sublimation_blowing constraints
+  CONSTRAINT enforce_height_sublimation_blowing CHECK (st_height(sublimation_blowing) = 3351),
+  CONSTRAINT enforce_nodata_values_sublimation_blowing CHECK (_raster_constraint_nodata_values(sublimation_blowing)::numeric(16,10)[] = '{-9999}'::numeric(16,10)[]),
+  CONSTRAINT enforce_num_bands_sublimation_blowing CHECK (st_numbands(sublimation_blowing) = 1),
+  CONSTRAINT enforce_out_db_sublimation_blowing CHECK (_raster_constraint_out_db(sublimation_blowing) = '{f}'::boolean[]),
+  CONSTRAINT enforce_pixel_types_sublimation_blowing CHECK (_raster_constraint_pixel_types(sublimation_blowing) = '{16BSI}'::text[]),
+  CONSTRAINT enforce_scalex_sublimation_blowing CHECK (st_scalex(sublimation_blowing)::numeric(25,10) = 0.00833333333333328::numeric(25,10)),
+  CONSTRAINT enforce_scaley_sublimation_blowing CHECK (st_scaley(sublimation_blowing)::numeric(25,10) = (-0.00833333333333333)::numeric(25,10))
+  -- precip_solid constraints
+  CONSTRAINT enforce_height_precip_solid CHECK (st_height(precip_solid) = 3351),
+  CONSTRAINT enforce_nodata_values_precip_solid CHECK (_raster_constraint_nodata_values(precip_solid)::numeric(16,10)[] = '{-9999}'::numeric(16,10)[]),
+  CONSTRAINT enforce_num_bands_precip_solid CHECK (st_numbands(precip_solid) = 1),
+  CONSTRAINT enforce_out_db_precip_solid CHECK (_raster_constraint_out_db(precip_solid) = '{f}'::boolean[]),
+  CONSTRAINT enforce_pixel_types_precip_solid CHECK (_raster_constraint_pixel_types(precip_solid) = '{16BSI}'::text[]),
+  CONSTRAINT enforce_scalex_precip_solid CHECK (st_scalex(precip_solid)::numeric(25,10) = 0.00833333333333328::numeric(25,10)),
+  CONSTRAINT enforce_scaley_precip_solid CHECK (st_scaley(precip_solid)::numeric(25,10) = (-0.00833333333333333)::numeric(25,10))
+  -- precip_liquid constraints
+  CONSTRAINT enforce_height_precip_liquid CHECK (st_height(precip_liquid) = 3351),
+  CONSTRAINT enforce_nodata_values_precip_liquid CHECK (_raster_constraint_nodata_values(precip_liquid)::numeric(16,10)[] = '{-9999}'::numeric(16,10)[]),
+  CONSTRAINT enforce_num_bands_precip_liquid CHECK (st_numbands(precip_liquid) = 1),
+  CONSTRAINT enforce_out_db_precip_liquid CHECK (_raster_constraint_out_db(precip_liquid) = '{f}'::boolean[]),
+  CONSTRAINT enforce_pixel_types_precip_liquid CHECK (_raster_constraint_pixel_types(precip_liquid) = '{16BSI}'::text[]),
+  CONSTRAINT enforce_scalex_precip_liquid CHECK (st_scalex(precip_liquid)::numeric(25,10) = 0.00833333333333328::numeric(25,10)),
+  CONSTRAINT enforce_scaley_precip_liquid CHECK (st_scaley(precip_liquid)::numeric(25,10) = (-0.00833333333333333)::numeric(25,10))
+  -- average_temp constraints
+  CONSTRAINT enforce_height_average_temp CHECK (st_height(average_temp) = 3351),
+  CONSTRAINT enforce_nodata_values_average_temp CHECK (_raster_constraint_nodata_values(average_temp)::numeric(16,10)[] = '{-9999}'::numeric(16,10)[]),
+  CONSTRAINT enforce_num_bands_average_temp CHECK (st_numbands(average_temp) = 1),
+  CONSTRAINT enforce_out_db_average_temp CHECK (_raster_constraint_out_db(average_temp) = '{f}'::boolean[]),
+  CONSTRAINT enforce_pixel_types_average_temp CHECK (_raster_constraint_pixel_types(average_temp) = '{16BSI}'::text[]),
+  CONSTRAINT enforce_scalex_average_temp CHECK (st_scalex(average_temp)::numeric(25,10) = 0.00833333333333328::numeric(25,10)),
+  CONSTRAINT enforce_scaley_average_temp CHECK (st_scaley(average_temp)::numeric(25,10) = (-0.00833333333333333)::numeric(25,10))
 );
 
 
-CREATE TABLE "snodas_tiles" (
-  "rid" serial PRIMARY KEY,
+CREATE TABLE "snodas_swe_tiles" (
+  "tile_id" serial PRIMARY KEY,
   "parent" integer NOT NULL REFERENCES "snodas" ON DELETE CASCADE,
   "rast" raster,
   "x" integer NOT NULL CHECK (x >= 0),
@@ -39,14 +105,14 @@ DECLARE
   upper double precision;
 BEGIN
   -- clean out old tiles so we can rebuild
-  DELETE FROM snodas_tiles WHERE parent = NEW.rid;
+  DELETE FROM snodas_swe_tiles WHERE parent = NEW.rid;
   
   -- do a 2.5 std dev stretch on the imagery
-  stats := ST_SummaryStats(NEW.rast);
+  stats := ST_SummaryStats(NEW.swe);
   lower := GREATEST(0, stats.mean - 2.5 * stats.stddev);
   upper := LEAST(32767, stats.mean + 2.5 * stats.stddev);
   warped := ST_Reclass(
-    NEW.rast,
+    NEW.swe,
     1,
     '-32768-0):0, [0-' || lower || '):0, [' || lower || '-' || upper || ']:0-255, (' || upper || '-32767:255'::text,
     '8BUI'::text,
@@ -58,10 +124,10 @@ BEGIN
       
   -- generate the tiles inserting each into the tile table
   -- we override the defaults and generate zoom levels 0 through 7
-  INSERT INTO snodas_tiles
+  INSERT INTO snodas_swe_tiles
     (parent, rast, x, y, zoom)
   SELECT
-    NEW.rid, t.rast, t.x, t.y, t.z
+    NEW.snodas_id, t.rast, t.x, t.y, t.z
   FROM tms_build_tiles(warped, 0, 7) AS t;
   RETURN NULL;
 END;
@@ -92,12 +158,12 @@ DECLARE
   _q_outrast raster;
 BEGIN
   -- find the parent raster so we can query just its tiles
-  SELECT rid FROM snodas WHERE date = _q_rdate INTO _q_parent_id;
+  SELECT snodas_id FROM snodas WHERE date = _q_rdate INTO _q_parent_id;
 
   -- we try to get the tile rid and
   -- raster data for the request tile
-  SELECT rid, rast
-  FROM snodas_tiles
+  SELECT tile_id, rast
+  FROM snodas_swe_tiles
   WHERE
       x = _q_coord.x AND
       y = _q_coord.y AND
@@ -110,7 +176,7 @@ BEGIN
   IF _q_rid IS NULL AND _q_resample THEN
     _q_outrast := _q_coord::raster;
     SELECT tms_copy_to_tile(ST_Resample(rast, _q_outrast), _q_outrast)
-    FROM snodas_tiles
+    FROM snodas_swe_tiles
     WHERE
       parent = _q_parent_id AND
       ST_Intersects(rast, _q_outrast)
@@ -125,7 +191,7 @@ BEGIN
     END IF;
     
     -- we save the generated tile for next time
-    INSERT INTO snodas_tiles (
+    INSERT INTO snodas_swe_tiles (
       rast,
       parent,
       x,
@@ -151,4 +217,3 @@ BEGIN
   RETURN (SELECT ST_AsPNG(_q_tile));
 END;
 $$;
-
