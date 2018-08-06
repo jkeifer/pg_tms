@@ -163,7 +163,7 @@ $$;
 -- pg_tms tiling functions
 --------------------------
 
-CREATE FUNCTION tms_calc_zoom(
+CREATE FUNCTION tms_raster2tilecoord_ext(
   input raster,
   zoom int
 )
@@ -246,125 +246,85 @@ RETURNS bool
 LANGUAGE plpgsql IMMUTABLE STRICT
 AS $$
 BEGIN
-  FOR band in 1..ST_NumBands(input) LOOP
-    IF ST_Count(input, band) > 0 THEN
-      RETURN true;
-    END IF;
-  END LOOP;
-  RETURN false;
+  RETURN (SELECT EXISTS (
+    SELECT *
+    FROM generate_series(1, ST_NumBands(input)) as band
+    WHERE ST_Count(input, band) > 0
+  ));
 END
 $$;
 
 
-CREATE FUNCTION tms_tile_zoom(
+CREATE FUNCTION tms_tilecoordz_from_raster(
   input raster,
-  zoom int,
-  drop_blanks bool DEFAULT true,
-  algorithm text DEFAULT 'NearestNeighbor'
+  zoom int
 )
-RETURNS SETOF tms_tile
+RETURNS SETOF tms_tilecoordz
 LANGUAGE plpgsql IMMUTABLE STRICT
 AS $$
 DECLARE
-  resampled raster;
-  tile raster;
   tminx int;
   tminy int;
   tmaxx int;
   tmaxy int;
-  tcount bigint;
-  tnow bigint DEFAULT 0;
 BEGIN
   -- find the extent of the input raster in tile coords
   SELECT
     t.minx, t.miny, t.maxx, t.maxy
   FROM
-    tms_calc_zoom(input, zoom) AS t
+    tms_raster2tilecoord_ext(input, zoom) AS t
   INTO
     tminx, tminy, tmaxx, tmaxy;
 
-  tcount := (tmaxx - tminx + 1) * (tmaxy - tminy + 1);
- 
-  RAISE INFO 'ZOOM LEVEL % TILING FROM (%, %) TO (%, %) -- % total tiles', zoom, tminx, tminy, tmaxx, tmaxy, tcount;
-  -- generate the tiles for this zoom level
-  FOR ty IN tminy..tmaxy LOOP
-    FOR tx IN tminx..tmaxx LOOP
-      tnow := tnow + 1;
+  RETURN QUERY (
+    SELECT
       -- We have to handle data crossing 180E, which could have
-      -- invalid tile coords. So we mod by the number of x tiles.
-      tx := tx % (2 ^ zoom)::int;
-
-      RAISE INFO 'PROCESS TILE XYZ (%,%, %) -- % of %', tx, ty, zoom, tnow, tcount;
-
-      -- generate a blank raster for the tile
-      SELECT (tx, ty, zoom)::tms_tilecoordz::raster INTO tile;
-     
-      -- if we haven't created the resampled raster, do so now
-      IF resampled IS NULL THEN
-        SELECT ST_Resample(input, tile, algorithm) INTO resampled;
-      END IF;
-
-      tile := tms_copy_to_tile(resampled, tile);
-
-      IF NOT drop_blanks OR tms_has_data(tile) THEN
-        RETURN NEXT ((tile, tx, ty, zoom)::tms_tile);
-      ELSE
-        RAISE WARNING 'TILE DROPPED BECAUSE IT HAS NO DATA';
-        RETURN NEXT ((NULL, tx, ty, zoom)::tms_tile);
-      END IF;
-    END LOOP;
-  END LOOP;
-  RETURN;
-END
+      -- invalid tile coords. So we mod x by the number of x tiles.
+      x % (2 ^ zoom)::int, y, zoom
+    FROM
+      generate_series(tminx, tmaxx) AS x,
+      generate_series(tminy, tmaxy) AS y
+  );
+END;
 $$;
 
-CREATE FUNCTION tms_build_tiles(
+
+CREATE FUNCTION tms_tile_raster_to_zoom(
   input raster,
-  min_zoom int DEFAULT -1,
-  max_zoom int DEFAULT -1,
+  zoom int DEFAULT -1,
   drop_blanks bool DEFAULT true,
   algorithm text DEFAULT 'NearestNeighbor'
 )
 RETURNS SETOF tms_tile
 LANGUAGE plpgsql IMMUTABLE STRICT
 AS $$
-DECLARE
-  _min_zoom int;
-  _max_zoom int;
-  tminx int;
-  tminy int;
-  tmaxx int;
-  tmaxy int;
 BEGIN
-  IF ST_SRID(input) != 3857 THEN
-    RAISE EXCEPTION 'Raster SRID is not 3857 or equivalent, rather is %', ST_SRID(input)
-      USING HINT = 'Use ST_Transform to warp the input raster to 3857 before tiling';
+  -- if zoom not specified, find the native zoom level
+  IF zoom = -1 THEN
+    SELECT tms_zoomforpixelsize(ST_Scalex(input)) INTO zoom;
   END IF;
 
-  IF min_zoom = -1 THEN
-    -- assumes raster is in 3857 thus pixels are square
-    SELECT tms_zoomforpixelsize(
-        (ST_Scalex(input) * GREATEST(ST_Height(input), ST_Width(input)) / 256)
-    ) INTO _min_zoom;
-  ELSE
-    _min_zoom := min_zoom;
-  END IF;
-  RAISE INFO 'MIN ZOOM LEVEL %', _min_zoom;
-
-  IF max_zoom = -1 THEN
-    -- assumes raster is in 3857 thus pixels are square
-    SELECT tms_zoomforpixelsize(ST_Scalex(input)) INTO _max_zoom;
-  ELSE
-    _max_zoom := max_zoom;
-  END IF;
-  RAISE INFO 'MAX ZOOM LEVEL %', _max_zoom;
-  
   -- generate the tiles for this zoom level
-  FOR zoom IN _min_zoom.._max_zoom LOOP
-    RETURN QUERY SELECT t.rast, t.x, t.y, t.z FROM tms_tile_zoom(input, zoom, drop_blanks, algorithm) as t;
-  END LOOP;
-RETURN;
-END;
+  RETURN QUERY (
+    SELECT
+      CASE
+        WHEN NOT drop_blanks OR tms_has_data(tile) THEN
+          tile
+        ELSE
+          NULL
+        END,
+      t.x,
+      t.y,
+      zoom
+    FROM
+      tms_tilecoordz_from_raster(input, zoom) as t,
+    LATERAL
+      tms_copy_to_tile(
+        ST_Resample(input, t::raster, algorithm),
+        t::raster
+    ) as tile
+  );
+END
 $$;
 
 
