@@ -35,7 +35,7 @@ CREATE TYPE tms_tile AS (rast raster, x int, y int, z int);
 
 CREATE FUNCTION tms_fliprastergeotransform(input raster)
 RETURNS raster
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
  RETURN (SELECT ST_SetGeoReference(
@@ -52,7 +52,7 @@ $$;
 
 CREATE FUNCTION tms_tilecoordz2raster(coords tms_tilecoordz)
 RETURNS raster
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 DECLARE
   ext tms_meters_ext;
@@ -82,7 +82,7 @@ CREATE CAST (tms_tilecoordz AS raster)
 
 CREATE FUNCTION tms_tilecoordz2polygon(coords tms_tilecoordz)
 RETURNS geometry
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 DECLARE
   ext tms_meters_ext;
@@ -109,7 +109,7 @@ CREATE CAST (tms_tilecoordz AS geometry)
 
 CREATE FUNCTION tms_initialresolution()
 RETURNS double precision
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   -- 6378137 is the radius of the earth in m
@@ -120,7 +120,7 @@ $$;
 
 CREATE FUNCTION tms_originshift()
 RETURNS double precision
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   -- 6378137 is the radius of the earth in m
@@ -130,7 +130,7 @@ $$;
 
 CREATE FUNCTION tms_resolution(zoom int)
 RETURNS double precision
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   RETURN(SELECT tms_initialresolution() / 2 ^ zoom);
@@ -139,7 +139,7 @@ $$;
 
 CREATE FUNCTION tms_zoomforpixelsize(pixelSize double precision)
 RETURNS int
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   -- gdal2tile uses max zoom level of 32
@@ -168,7 +168,7 @@ CREATE FUNCTION tms_raster2tilecoord_ext(
   zoom int
 )
 RETURNS tms_tilecoord_ext 
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 DECLARE
   tminx int;
@@ -208,7 +208,7 @@ CREATE FUNCTION tms_copy_to_tile(
   tile raster
 )
 RETURNS raster
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 DECLARE
   output raster;
@@ -243,7 +243,7 @@ CREATE FUNCTION tms_has_data(
   input raster
 )
 RETURNS bool
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   RETURN (SELECT EXISTS (
@@ -260,7 +260,7 @@ CREATE FUNCTION tms_tilecoordz_from_raster(
   zoom int
 )
 RETURNS SETOF tms_tilecoordz
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 DECLARE
   tminx int;
@@ -296,7 +296,7 @@ CREATE FUNCTION tms_tile_raster_to_zoom(
   algorithm text DEFAULT 'NearestNeighbor'
 )
 RETURNS SETOF tms_tile
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   -- if zoom not specified, find the native zoom level
@@ -334,7 +334,7 @@ $$;
 
 CREATE FUNCTION tms_latlon2meters(lat double precision, lon double precision)
 RETURNS tms_meters
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   RETURN (select tms_latlon2meters((lat, lon)::tms_latlon));
@@ -343,7 +343,7 @@ $$;
 
 CREATE FUNCTION tms_latlon2meters(coords tms_latlon)
 RETURNS tms_meters
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 DECLARE
   ret tms_meters;
@@ -359,7 +359,7 @@ $$;
 
 CREATE FUNCTION tms_meters2latlon(mx double precision, my double precision)
 RETURNS tms_latlon
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   RETURN (select tms_meters2latlon((mx, my)::tms_meters));
@@ -368,7 +368,7 @@ $$;
 
 CREATE FUNCTION tms_meters2latlon(coords tms_meters)
 RETURNS tms_latlon
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 DECLARE
   ret tms_latlon;
@@ -384,7 +384,7 @@ $$;
 
 CREATE FUNCTION tms_pixels2meters(px int, py int, zoom int)
 RETURNS tms_meters
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   RETURN (SELECT tms_pixels2meters((px, py)::tms_pixels, zoom));
@@ -393,7 +393,7 @@ $$;
 
 CREATE FUNCTION tms_pixels2meters(coords tms_pixels, zoom int)
 RETURNS tms_meters
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 DECLARE
   ret tms_meters;
@@ -409,7 +409,7 @@ $$;
 
 CREATE FUNCTION tms_meters2pixels(mx double precision, my double precision, zoom int)
 RETURNS tms_pixels
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   RETURN (SELECT tms_meters2pixels((mx, my)::tms_meters, zoom));
@@ -418,7 +418,7 @@ $$;
 
 CREATE FUNCTION tms_meters2pixels(coords tms_meters, zoom int)
 RETURNS tms_pixels 
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 DECLARE
   ret tms_pixels;
@@ -434,7 +434,7 @@ $$;
 
 CREATE FUNCTION tms_pixels2tile(px int, py int)
 RETURNS tms_tilecoord
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   RETURN (SELECT tms_pixels2tile((px, py)::tms_pixels));
@@ -443,7 +443,7 @@ $$;
 
 CREATE FUNCTION tms_pixels2tile(coords tms_pixels)
 RETURNS tms_tilecoord 
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 DECLARE
   ret tms_tilecoord;
@@ -459,7 +459,7 @@ $$;
 
 CREATE FUNCTION tms_pixels2raster(px int, py int, zoom int)
 RETURNS tms_pixels
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   RETURN (SELECT tms_pixels2raster((px, py)::tms_pixels, zoom));
@@ -468,7 +468,7 @@ $$;
 
 CREATE FUNCTION tms_pixels2raster(coords tms_pixels, zoom int)
 RETURNS tms_pixels
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 DECLARE
   ret tms_pixels;
@@ -484,7 +484,7 @@ $$;
 
 CREATE FUNCTION tms_meters2tile(mx double precision, my double precision, zoom int)
 RETURNS tms_tilecoord
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   RETURN (SELECT tms_meters2tile((mx, my)::tms_meters, zoom));
@@ -493,7 +493,7 @@ $$;
 
 CREATE FUNCTION tms_meters2tile(coords tms_meters, zoom int)
 RETURNS tms_tilecoord
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   RETURN (SELECT tms_pixels2tile(tms_meters2pixels(coords.x, coords.y, zoom)));
@@ -503,7 +503,7 @@ $$;
 
 CREATE FUNCTION tms_tileorigin_meters(tx int, ty int, zoom int)
 RETURNS tms_meters
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   RETURN (SELECT tms_tileorigin_meters((tx, ty, zoom)::tms_tilecoordz));
@@ -512,7 +512,7 @@ $$;
 
 CREATE FUNCTION tms_tileorigin_meters(coords tms_tilecoord, zoom int)
 RETURNS tms_meters
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   RETURN (SELECT tms_tileorigin_meters((coords.x, coords.y, zoom)::tms_tilecoordz));
@@ -521,7 +521,7 @@ $$;
 
 CREATE FUNCTION tms_tileorigin_meters(coords tms_tilecoordz)
 RETURNS tms_meters
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   RETURN (SELECT tms_pixels2meters(coords.x * 256, coords.y * 256, coords.z));
@@ -531,7 +531,7 @@ $$;
 
 CREATE FUNCTION tms_tilebounds_meters(tx int, ty int, zoom int)
 RETURNS tms_meters_ext
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   RETURN (SELECT tms_tilebounds_meters((tx, ty, zoom)::tms_tilecoordz));
@@ -540,7 +540,7 @@ $$;
 
 CREATE FUNCTION tms_tilebounds_meters(coords tms_tilecoord, zoom int)
 RETURNS tms_meters_ext
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   RETURN (SELECT tms_tilebounds_meters((coords.x, coords.y, zoom)::tms_tilecoordz));
@@ -549,7 +549,7 @@ $$;
 
 CREATE FUNCTION tms_tilebounds_meters(coords tms_tilecoordz)
 RETURNS tms_meters_ext
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 DECLARE
   ret tms_meters_ext;
@@ -574,7 +574,7 @@ CREATE CAST (tms_tilecoordz AS tms_meters_ext)
 
 CREATE FUNCTION tms_tilebounds_latlon(tx int, ty int, zoom int)
 RETURNS tms_latlon_ext
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   RETURN (SELECT tms_tilebounds_latlon((tx, ty, zoom)::tms_tilecoordz));
@@ -583,7 +583,7 @@ $$;
 
 CREATE FUNCTION tms_tilebounds_latlon(coords tms_tilecoord, zoom int)
 RETURNS tms_latlon_ext
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 BEGIN
   RETURN (SELECT tms_tilebounds_latlon((coords.x, coords.y, zoom)::tms_tilecoordz));
@@ -592,7 +592,7 @@ $$;
 
 CREATE FUNCTION tms_tilebounds_latlon(coords tms_tilecoordz)
 RETURNS tms_latlon_ext
-LANGUAGE plpgsql IMMUTABLE STRICT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
 DECLARE
   ret tms_latlon_ext;
@@ -615,4 +615,3 @@ $$;
 CREATE CAST (tms_tilecoordz AS tms_latlon_ext)
   WITH FUNCTION tms_tilebounds_latlon(tms_tilecoordz)
   AS ASSIGNMENT;
-
