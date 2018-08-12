@@ -40,10 +40,24 @@ Simple.
 On Windows, building extensions is generally more complicated.
 However, this project is all in SQL and does not require any
 specific build steps, so in reality installation on Windows is
-still easy. Clone this repo, then copy the `pg_tms--X.X.sql` and
-`pg_tms.control` files to your postgres installation's
-`share\extension` directory. For example, on one of my installations,
+still easy. Clone this repo, then copy the sql and control files
+your postgres installation's `share\extension` directory.
+For example, on one of my installations,
 that path is `C:\Program Files\PostgreSQL\9.6\share\extension`.
+
+The `sh` script `win-install.sh` has been included in the repo
+to auto-discover your extension directory and copy the files
+there for you. It simply looks for `psql` on your path to find
+your postgres bin directory, and finds the extension relative
+to that path. It can be run from anything on Windows that will
+execute `sh`, like cygwin or mingw64, and does not require make.
+
+If `psql` is not on your path or you want to install pg_tms to a
+different location, just provide the directory path desired as
+the argument to `win-install.sh`.
+
+In all cases the script will prompt before copying so you can
+confirm the path is correct.
 
 
 Adding pg_tms to your database
