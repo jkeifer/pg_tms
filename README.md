@@ -1,4 +1,4 @@
-pg_tms: A postgres Tile Map Service tiler
+`pg_tms`: A postgres Tile Map Service tiler
 =========================================
 
 `pg_tms` is a postgres extension that provides functions
