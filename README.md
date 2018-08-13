@@ -52,6 +52,13 @@ your postgres bin directory, and finds the extension relative
 to that path. It can be run from anything on Windows that will
 execute `sh`, like cygwin or mingw64, and does not require make.
 
+This means you should be able to install pg_tms on Windows with
+a simple command:
+
+```
+$ ./win-install.sh
+```
+
 If `psql` is not on your path or you want to install pg_tms to a
 different location, just provide the directory path desired as
 the argument to `win-install.sh`.
