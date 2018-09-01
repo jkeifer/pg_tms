@@ -26,7 +26,7 @@ if ! [ -d "${pg_share}" ]; then
     exit 2
 fi
 
-echo "Install pg_tms to '${pg_share}'?"
+echo "Install pg_tms to '${pg_share}' (y/N)?"
 read -r -p "${confirm}" response
 case $response in
     [yY][eE][sS]|[yY])
