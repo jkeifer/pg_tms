@@ -1,5 +1,5 @@
 # pg_tms extension to tile rasters to tiled map services
 comment = 'functions to tile rasters in TMS format'
 requires = 'postgis'
-default_version = '0.0.3'
+default_version = '0.0.4'
 relocatable = true
